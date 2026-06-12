@@ -10,7 +10,7 @@ from .models import User, DeviceType, Location, Device, BorrowRecord, Maintenanc
 from .serializers import (
     UserSerializer, UserCreateSerializer,
     DeviceTypeSerializer, LocationSerializer,
-    DeviceListSerializer, DeviceDetailSerializer, DeviceCreateSerializer,
+    DeviceListSerializer, DeviceDetailSerializer, DeviceCreateSerializer, DeviceUpdateSerializer,
     BorrowRecordSerializer, BorrowCreateSerializer, ReturnDeviceSerializer,
     MaintenanceRecordSerializer, MaintenanceCreateSerializer,
     ExceptionRecordSerializer, ExceptionCreateSerializer, ExceptionReviewSerializer,
@@ -161,7 +161,7 @@ class BorrowRecordViewSet(viewsets.ModelViewSet):
         return BorrowRecordSerializer
 
     def get_permissions(self):
-        if self.action == 'create':
+        if self.action in ['create', 'return_device']:
             return [IsAdminOrEmployee()]
         if self.action in ['list', 'retrieve']:
             return [IsAuthenticated()]

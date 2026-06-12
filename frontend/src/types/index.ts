@@ -57,6 +57,8 @@ export interface Device {
   location_name: string;
   status: DeviceStatus;
   status_display: string;
+  specification: string;
+  purchase_date: string | null;
   is_overdue: boolean;
   turnover_count: number;
   current_borrower: CurrentBorrower | null;
@@ -64,8 +66,6 @@ export interface Device {
 }
 
 export interface DeviceDetail extends Device {
-  specification: string;
-  purchase_date: string | null;
   last_maintenance_date: string | null;
   borrow_records: BorrowRecord[];
   maintenance_records: MaintenanceRecord[];

@@ -89,7 +89,8 @@ class DeviceListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'asset_number', 'name', 'device_type_id', 'device_type_name',
             'location_id', 'location_name', 'status', 'status_display',
-            'is_overdue', 'turnover_count', 'current_borrower', 'created_at'
+            'specification', 'purchase_date', 'is_overdue', 'turnover_count',
+            'current_borrower', 'created_at'
         ]
 
     def get_current_borrower(self, obj):

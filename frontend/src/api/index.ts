@@ -57,7 +57,7 @@ export const api = {
     create(data: any): Promise<Device> {
       return http.post('/devices/', data);
     },
-    update(id: number, data: Partial<Device>): Promise<Device> {
+    update(id: number, data: any): Promise<Device> {
       return http.put(`/devices/${id}/`, data);
     },
     delete(id: number): Promise<void> {
