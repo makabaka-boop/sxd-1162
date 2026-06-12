@@ -1,6 +1,6 @@
 import { api } from '../api';
 import { formatDate, getStatusBadgeClass } from '../utils/format';
-import { showAlert } from '../components/Modal';
+import { showAlert, showModal } from '../components/Modal';
 import type { Device, DeviceFilters, DeviceType, Location, User } from '../types';
 
 export async function DeviceListPage(): Promise<HTMLElement> {
@@ -25,6 +25,54 @@ export async function DeviceListPage(): Promise<HTMLElement> {
     } catch (error) {
       showAlert(error instanceof Error ? error.message : '加载失败');
     }
+  };
+
+  const showReserveModal = (device: Device) => {
+    const content = document.createElement('div');
+    content.innerHTML = `
+      <div class="form-group">
+        <label class="form-label">设备</label>
+        <div style="padding: 0.5rem; background: #f7fafc; border-radius: 4px;">
+          ${device.asset_number} - ${device.name}
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">预计借用日期</label>
+        <input type="date" class="form-input" id="reserve-borrow-date" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">预计归还日期</label>
+        <input type="date" class="form-input" id="reserve-return-date" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">预约用途</label>
+        <textarea class="form-textarea" id="reserve-purpose" placeholder="请输入预约用途" required></textarea>
+      </div>
+    `;
+
+    showModal(`预约设备 - ${device.name}`, content, async () => {
+      const expectedBorrowDate = (content.querySelector('#reserve-borrow-date') as HTMLInputElement).value;
+      const expectedReturnDate = (content.querySelector('#reserve-return-date') as HTMLInputElement).value;
+      const purpose = (content.querySelector('#reserve-purpose') as HTMLTextAreaElement).value;
+
+      if (!expectedBorrowDate || !expectedReturnDate || !purpose) {
+        showAlert('请填写完整信息');
+        return false;
+      }
+
+      try {
+        await api.reservations.create({
+          device: device.id,
+          expected_borrow_date: expectedBorrowDate,
+          expected_return_date: expectedReturnDate,
+          purpose,
+        });
+        showAlert('预约成功', 'success');
+      } catch (error) {
+        showAlert(error instanceof Error ? error.message : '预约失败');
+        return false;
+      }
+    });
   };
 
   const render = () => {
@@ -108,6 +156,7 @@ export async function DeviceListPage(): Promise<HTMLElement> {
               <td>${formatDate(device.created_at)}</td>
               <td>
                 <a href="#/devices/${device.id}" class="btn btn-sm btn-primary">详情</a>
+                ${device.status === 'borrowed' ? `<button class="btn btn-sm btn-warning reserve-btn" data-id="${device.id}">预约</button>` : ''}
               </td>
             </tr>
           `).join('') : `
@@ -146,6 +195,14 @@ export async function DeviceListPage(): Promise<HTMLElement> {
     borrowerSelect.onchange = onChange;
     startInput.onchange = onChange;
     endInput.onchange = onChange;
+
+    container.querySelectorAll('.reserve-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const deviceId = Number(btn.getAttribute('data-id'));
+        const device = devices.find(d => d.id === deviceId);
+        if (device) showReserveModal(device);
+      });
+    });
   };
 
   await loadData();

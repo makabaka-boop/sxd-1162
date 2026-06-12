@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.utils import timezone
-from .models import User, DeviceType, Location, Device, BorrowRecord, MaintenanceRecord, ExceptionRecord
+from .models import User, DeviceType, Location, Device, BorrowRecord, MaintenanceRecord, ExceptionRecord, Reservation
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -115,6 +115,8 @@ class DeviceDetailSerializer(serializers.ModelSerializer):
     maintenance_records = serializers.SerializerMethodField()
     exception_records = serializers.SerializerMethodField()
 
+    reservation_records = serializers.SerializerMethodField()
+
     class Meta:
         model = Device
         fields = [
@@ -122,7 +124,7 @@ class DeviceDetailSerializer(serializers.ModelSerializer):
             'location_id', 'location_name', 'status', 'status_display',
             'specification', 'purchase_date', 'last_maintenance_date',
             'is_overdue', 'turnover_count', 'borrow_records',
-            'maintenance_records', 'exception_records', 'created_at'
+            'maintenance_records', 'exception_records', 'reservation_records', 'created_at'
         ]
 
     def get_borrow_records(self, obj):
@@ -136,6 +138,10 @@ class DeviceDetailSerializer(serializers.ModelSerializer):
     def get_exception_records(self, obj):
         records = obj.exception_records.all().order_by('-reported_date')
         return ExceptionRecordSerializer(records, many=True).data
+
+    def get_reservation_records(self, obj):
+        records = obj.reservations.all().order_by('-created_at')
+        return ReservationSerializer(records, many=True).data
 
 
 class DeviceCreateSerializer(serializers.ModelSerializer):
@@ -269,3 +275,48 @@ class StatisticsSerializer(serializers.Serializer):
     pending_maintenance = serializers.IntegerField()
     exception_distribution = serializers.DictField()
     low_stock_types = serializers.ListField()
+    pending_reservations = serializers.IntegerField()
+
+
+class ReservationSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source='user.real_name', read_only=True)
+    device_name = serializers.CharField(source='device.name', read_only=True)
+    asset_number = serializers.CharField(source='device.asset_number', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = Reservation
+        fields = [
+            'id', 'device', 'device_name', 'asset_number', 'user', 'user_name',
+            'expected_borrow_date', 'expected_return_date', 'purpose',
+            'status', 'status_display', 'created_at', 'notified_at', 'fulfilled_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'notified_at', 'fulfilled_at', 'status']
+
+
+class ReservationCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reservation
+        fields = ['device', 'expected_borrow_date', 'expected_return_date', 'purpose']
+
+    def validate_device(self, value):
+        if value.status == 'decommissioned':
+            raise serializers.ValidationError('该设备已停用，无法预约')
+        return value
+
+    def validate_expected_borrow_date(self, value):
+        if value < timezone.now().date():
+            raise serializers.ValidationError('预计借用日期不能早于今天')
+        return value
+
+    def validate_expected_return_date(self, value):
+        if value < timezone.now().date():
+            raise serializers.ValidationError('预计归还日期不能早于今天')
+        return value
+
+    def validate(self, data):
+        if data['expected_return_date'] < data['expected_borrow_date']:
+            raise serializers.ValidationError('预计归还日期不能早于预计借用日期')
+        if (data['expected_return_date'] - data['expected_borrow_date']).days > 30:
+            raise serializers.ValidationError('借用时长不能超过30天')
+        return data

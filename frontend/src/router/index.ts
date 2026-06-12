@@ -14,6 +14,7 @@ export const routes: Route[] = [
   { path: '/devices/:id', component: 'DeviceDetailPage', requiresAuth: true },
   { path: '/borrow', component: 'BorrowPage', requiresAuth: true, roles: ['employee', 'admin'] },
   { path: '/return', component: 'ReturnPage', requiresAuth: true, roles: ['employee', 'admin'] },
+  { path: '/reservations', component: 'ReservationPage', requiresAuth: true, roles: ['employee', 'admin'] },
   { path: '/maintenance', component: 'MaintenancePage', requiresAuth: true, roles: ['employee', 'admin'] },
   { path: '/exceptions', component: 'ExceptionPage', requiresAuth: true },
   { path: '/exceptions/review', component: 'ExceptionReviewPage', requiresAuth: true, roles: ['supervisor', 'admin'] },

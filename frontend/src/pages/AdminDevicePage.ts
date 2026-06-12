@@ -1,7 +1,7 @@
 import { api } from '../api';
-import { formatDate, getStatusBadgeClass } from '../utils/format';
+import { formatDate, formatDateTime, getStatusBadgeClass } from '../utils/format';
 import { showAlert, showModal } from '../components/Modal';
-import type { Device, DeviceType, Location } from '../types';
+import type { Device, DeviceType, Location, Reservation } from '../types';
 
 export async function AdminDevicePage(): Promise<HTMLElement> {
   const container = document.createElement('div');
@@ -10,6 +10,7 @@ export async function AdminDevicePage(): Promise<HTMLElement> {
   let devices: Device[] = [];
   let deviceTypes: DeviceType[] = [];
   let locations: Location[] = [];
+  let reservationQueues: Record<number, Reservation[]> = {};
 
   const loadData = async () => {
     try {
@@ -18,6 +19,16 @@ export async function AdminDevicePage(): Promise<HTMLElement> {
         api.deviceTypes.list(),
         api.locations.list(),
       ]);
+      const queuePromises = devices.map(d =>
+        api.reservations.deviceQueue(d.id).catch(() => [])
+      );
+      const queues = await Promise.all(queuePromises);
+      reservationQueues = {};
+      devices.forEach((d, i) => {
+        if (queues[i] && queues[i].length > 0) {
+          reservationQueues[d.id] = queues[i];
+        }
+      });
       render();
     } catch (error) {
       showAlert(error instanceof Error ? error.message : '加载失败');
@@ -181,6 +192,66 @@ export async function AdminDevicePage(): Promise<HTMLElement> {
     }
   };
 
+  const showReservationQueue = (device: Device) => {
+    const queue = reservationQueues[device.id] || [];
+    const content = document.createElement('div');
+    content.innerHTML = `
+      <div style="margin-bottom: 1rem; padding: 0.75rem; background: #f7fafc; border-radius: 4px;">
+        <strong>设备：</strong>${device.asset_number} - ${device.name}
+        <br><strong>预约队列长度：</strong>${queue.length}
+      </div>
+      ${queue.length > 0 ? `
+        <table class="table" style="font-size: 0.875rem;">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>预约人</th>
+              <th>预计借用</th>
+              <th>预计归还</th>
+              <th>用途</th>
+              <th>状态</th>
+              <th>预约时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${queue.map((r, i) => `
+              <tr>
+                <td>${i + 1}</td>
+                <td>${r.user_name}</td>
+                <td>${formatDate(r.expected_borrow_date)}</td>
+                <td>${formatDate(r.expected_return_date)}</td>
+                <td style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${r.purpose}</td>
+                <td><span class="badge ${r.status === 'notified' ? 'badge-borrowed' : 'badge-pending-maintenance'}">${r.status_display}</span></td>
+                <td>${formatDateTime(r.created_at)}</td>
+                <td>
+                  <button class="btn btn-sm btn-danger admin-cancel-reserve-btn" data-id="${r.id}">取消</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      ` : '<div class="empty-state">暂无预约</div>'}
+    `;
+
+    const closeFn = showModal(`预约队列 - ${device.name}`, content, () => {});
+
+    content.querySelectorAll('.admin-cancel-reserve-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const reservationId = Number(btn.getAttribute('data-id'));
+        if (!confirm('确定要取消此预约吗？')) return;
+        try {
+          await api.reservations.cancel(reservationId);
+          showAlert('取消成功', 'success');
+          closeFn();
+          loadData();
+        } catch (error) {
+          showAlert(error instanceof Error ? error.message : '取消失败');
+        }
+      });
+    });
+  };
+
   const render = () => {
     container.innerHTML = `
       <div class="card-header" style="margin-bottom: 1rem;">
@@ -197,6 +268,7 @@ export async function AdminDevicePage(): Promise<HTMLElement> {
             <th>位置</th>
             <th>状态</th>
             <th>周转次数</th>
+            <th>预约队列</th>
             <th>创建时间</th>
             <th>操作</th>
           </tr>
@@ -213,15 +285,25 @@ export async function AdminDevicePage(): Promise<HTMLElement> {
                 ${item.is_overdue ? '<span class="badge badge-overdue" style="margin-left: 0.25rem;">逾期</span>' : ''}
               </td>
               <td>${item.turnover_count}</td>
+              <td>
+                ${(reservationQueues[item.id] || []).length > 0
+                  ? `<span class="badge badge-borrowed">${(reservationQueues[item.id] || []).length}人预约</span>`
+                  : '<span style="color: #718096;">-</span>'
+                }
+              </td>
               <td>${formatDate(item.created_at)}</td>
               <td>
                 <a href="#/devices/${item.id}" class="btn btn-sm btn-primary">详情</a>
                 <button class="btn btn-sm btn-secondary edit-btn" data-id="${item.id}">编辑</button>
                 <button class="btn btn-sm btn-danger delete-btn" data-id="${item.id}">删除</button>
+                ${(reservationQueues[item.id] || []).length > 0
+                  ? `<button class="btn btn-sm btn-warning queue-btn" data-id="${item.id}">预约队列</button>`
+                  : ''
+                }
               </td>
             </tr>
           `).join('') : `
-            <tr><td colspan="8" class="empty-state">暂无数据</td></tr>
+            <tr><td colspan="9" class="empty-state">暂无数据</td></tr>
           `}
         </tbody>
       </table>
@@ -247,6 +329,14 @@ export async function AdminDevicePage(): Promise<HTMLElement> {
         const id = Number(btn.getAttribute('data-id'));
         const item = devices.find(d => d.id === id);
         if (item) deleteItem(item);
+      });
+    });
+
+    container.querySelectorAll('.queue-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.getAttribute('data-id'));
+        const item = devices.find(d => d.id === id);
+        if (item) showReservationQueue(item);
       });
     });
   };

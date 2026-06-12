@@ -4,7 +4,7 @@ from .views import (
     CustomTokenObtainPairView, UserViewSet, UserProfileView,
     DeviceTypeViewSet, LocationViewSet, DeviceViewSet,
     BorrowRecordViewSet, MaintenanceRecordViewSet, ExceptionRecordViewSet,
-    StatisticsView, CheckOverdueView
+    StatisticsView, CheckOverdueView, ReservationViewSet
 )
 
 router = DefaultRouter()
@@ -15,6 +15,7 @@ router.register(r'devices', DeviceViewSet)
 router.register(r'borrow-records', BorrowRecordViewSet)
 router.register(r'maintenance-records', MaintenanceRecordViewSet)
 router.register(r'exception-records', ExceptionRecordViewSet)
+router.register(r'reservations', ReservationViewSet)
 
 urlpatterns = [
     path('auth/login/', CustomTokenObtainPairView.as_view(), name='custom_login'),

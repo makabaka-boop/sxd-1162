@@ -37,6 +37,10 @@ export async function HomePage(): Promise<HTMLElement> {
           <h3>逾期未还</h3>
           <div class="stat-value">${overdue.overdue_count}</div>
         </div>
+        <div class="stat-card info">
+          <h3>待处理预约</h3>
+          <div class="stat-value">${stats.pending_reservations}</div>
+        </div>
         <div class="stat-card success">
           <h3>库存不足类型</h3>
           <div class="stat-value">${stats.low_stock_types.length}</div>

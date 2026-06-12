@@ -65,11 +65,31 @@ export interface Device {
   created_at: string;
 }
 
+export type ReservationStatus = 'pending' | 'notified' | 'fulfilled' | 'cancelled' | 'expired';
+
+export interface Reservation {
+  id: number;
+  device: number;
+  device_name: string;
+  asset_number: string;
+  user: number;
+  user_name: string;
+  expected_borrow_date: string;
+  expected_return_date: string;
+  purpose: string;
+  status: ReservationStatus;
+  status_display: string;
+  created_at: string;
+  notified_at: string | null;
+  fulfilled_at: string | null;
+}
+
 export interface DeviceDetail extends Device {
   last_maintenance_date: string | null;
   borrow_records: BorrowRecord[];
   maintenance_records: MaintenanceRecord[];
   exception_records: ExceptionRecord[];
+  reservation_records: Reservation[];
 }
 
 export interface BorrowRecord {
@@ -137,6 +157,7 @@ export interface Statistics {
     total: number;
     threshold: number;
   }[];
+  pending_reservations: number;
 }
 
 export interface DeviceFilters {

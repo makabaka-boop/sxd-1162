@@ -17,6 +17,7 @@ export function renderLayout(content: HTMLElement, currentPath: string): HTMLEle
     { path: '/devices', label: '设备列表' },
     { path: '/borrow', label: '借用设备', roles: ['employee', 'admin'] },
     { path: '/return', label: '归还设备', roles: ['employee', 'admin'] },
+    { path: '/reservations', label: '我的预约', roles: ['employee', 'admin'] },
     { path: '/maintenance', label: '维护记录', roles: ['employee', 'admin'] },
     { path: '/exceptions', label: '异常记录' },
     { path: '/exceptions/review', label: '异常复核', roles: ['supervisor', 'admin'] },

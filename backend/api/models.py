@@ -146,6 +146,33 @@ class MaintenanceRecord(models.Model):
         return f'{self.device} - {self.maintenance_type}'
 
 
+class Reservation(models.Model):
+    STATUS_CHOICES = (
+        ('pending', '待处理'),
+        ('notified', '已通知'),
+        ('fulfilled', '已借出'),
+        ('cancelled', '已取消'),
+        ('expired', '已过期'),
+    )
+
+    device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name='reservations', verbose_name='设备')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reservations', verbose_name='预约人')
+    expected_borrow_date = models.DateField(verbose_name='预计借用日期')
+    expected_return_date = models.DateField(verbose_name='预计归还日期')
+    purpose = models.TextField(verbose_name='预约用途')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='状态')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    notified_at = models.DateTimeField(null=True, blank=True, verbose_name='通知时间')
+    fulfilled_at = models.DateTimeField(null=True, blank=True, verbose_name='借出时间')
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.device} - {self.user} ({self.get_status_display()})'
+
+
 class ExceptionRecord(models.Model):
     EXCEPTION_TYPES = (
         ('damage', '损坏'),

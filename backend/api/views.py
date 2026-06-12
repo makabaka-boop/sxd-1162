@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import timedelta
-from .models import User, DeviceType, Location, Device, BorrowRecord, MaintenanceRecord, ExceptionRecord
+from .models import User, DeviceType, Location, Device, BorrowRecord, MaintenanceRecord, ExceptionRecord, Reservation
 from .serializers import (
     UserSerializer, UserCreateSerializer,
     DeviceTypeSerializer, LocationSerializer,
@@ -14,7 +14,8 @@ from .serializers import (
     BorrowRecordSerializer, BorrowCreateSerializer, ReturnDeviceSerializer,
     MaintenanceRecordSerializer, MaintenanceCreateSerializer,
     ExceptionRecordSerializer, ExceptionCreateSerializer, ExceptionReviewSerializer,
-    StatisticsSerializer, CustomTokenObtainPairSerializer
+    StatisticsSerializer, CustomTokenObtainPairSerializer,
+    ReservationSerializer, ReservationCreateSerializer
 )
 from .permissions import IsAdmin, IsEmployee, IsSupervisor, IsAdminOrSupervisor, IsAdminOrEmployee, IsOwnerOrAdmin
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -215,6 +216,15 @@ class BorrowRecordViewSet(viewsets.ModelViewSet):
             device.status = 'available'
         device.save()
 
+        next_reservation = Reservation.objects.filter(
+            device=device,
+            status='pending'
+        ).order_by('created_at').first()
+        if next_reservation:
+            next_reservation.status = 'notified'
+            next_reservation.notified_at = timezone.now()
+            next_reservation.save()
+
         if is_overdue:
             overdue_days = (timezone.now().date() - borrow_record.expected_return_date).days
             ExceptionRecord.objects.create(
@@ -354,6 +364,7 @@ class StatisticsView(APIView):
     def get(self, request):
         total_turnover = BorrowRecord.objects.filter(returned=True).count()
         pending_maintenance = Device.objects.filter(status='pending_maintenance').count()
+        pending_reservations = Reservation.objects.filter(status='pending').count()
 
         exception_distribution = dict(
             ExceptionRecord.objects.values('exception_type')
@@ -377,7 +388,8 @@ class StatisticsView(APIView):
             'total_turnover': total_turnover,
             'pending_maintenance': pending_maintenance,
             'exception_distribution': exception_distribution,
-            'low_stock_types': low_stock_types
+            'low_stock_types': low_stock_types,
+            'pending_reservations': pending_reservations
         }
         serializer = StatisticsSerializer(data)
         return Response(serializer.data)
@@ -414,3 +426,87 @@ class CheckOverdueView(APIView):
             'overdue_count': overdue_records.count(),
             'auto_created_exceptions': auto_created
         })
+
+
+class ReservationViewSet(viewsets.ModelViewSet):
+    queryset = Reservation.objects.all()
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return ReservationCreateSerializer
+        return ReservationSerializer
+
+    def get_permissions(self):
+        if self.action in ['create', 'cancel']:
+            return [IsAdminOrEmployee()]
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+        return [IsAdmin()]
+
+    def get_queryset(self):
+        queryset = Reservation.objects.all()
+        user = self.request.user
+        status_filter = self.request.query_params.get('status')
+        device_id = self.request.query_params.get('device')
+
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        if device_id:
+            queryset = queryset.filter(device_id=device_id)
+
+        if user.role == 'employee':
+            queryset = queryset.filter(user=user)
+
+        return queryset.order_by('-created_at')
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        device = serializer.validated_data['device']
+        if device.status == 'available' and not device.borrow_records.filter(returned=False).exists():
+            return Response(
+                {'error': '该设备当前可借用，无需预约，请直接借用'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        reservation = Reservation.objects.create(
+            device=device,
+            user=request.user,
+            expected_borrow_date=serializer.validated_data['expected_borrow_date'],
+            expected_return_date=serializer.validated_data['expected_return_date'],
+            purpose=serializer.validated_data['purpose']
+        )
+        headers = self.get_success_headers(serializer.data)
+        return Response(ReservationSerializer(reservation).data, status=status.HTTP_201_CREATED, headers=headers)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminOrEmployee])
+    def cancel(self, request, pk=None):
+        reservation = self.get_object()
+        if reservation.user != request.user and request.user.role != 'admin':
+            return Response({'error': '无权取消此预约'}, status=status.HTTP_403_FORBIDDEN)
+        if reservation.status not in ['pending', 'notified']:
+            return Response({'error': '该预约无法取消'}, status=status.HTTP_400_BAD_REQUEST)
+        original_status = reservation.status
+        reservation.status = 'cancelled'
+        reservation.save()
+        if original_status == 'notified':
+            next_reservation = Reservation.objects.filter(
+                device=reservation.device,
+                status='pending'
+            ).order_by('created_at').first()
+            if next_reservation:
+                next_reservation.status = 'notified'
+                next_reservation.notified_at = timezone.now()
+                next_reservation.save()
+        return Response(ReservationSerializer(reservation).data)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAdmin])
+    def device_queue(self, request):
+        device_id = request.query_params.get('device')
+        if not device_id:
+            return Response({'error': '请提供设备ID'}, status=status.HTTP_400_BAD_REQUEST)
+        reservations = Reservation.objects.filter(
+            device_id=device_id,
+            status__in=['pending', 'notified']
+        ).order_by('created_at')
+        serializer = ReservationSerializer(reservations, many=True)
+        return Response(serializer.data)

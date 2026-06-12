@@ -12,6 +12,7 @@ const pageComponents: Record<string, PageComponent> = {
   DeviceDetailPage: pages.DeviceDetailPage,
   BorrowPage: pages.BorrowPage,
   ReturnPage: pages.ReturnPage,
+  ReservationPage: pages.ReservationPage,
   MaintenancePage: pages.MaintenancePage,
   ExceptionPage: pages.ExceptionPage,
   ExceptionReviewPage: pages.ExceptionReviewPage,

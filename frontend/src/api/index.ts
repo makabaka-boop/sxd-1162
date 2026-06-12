@@ -1,7 +1,8 @@
 import { http } from './http';
 import type {
   LoginResponse, User, DeviceType, Location, Device, DeviceDetail,
-  BorrowRecord, MaintenanceRecord, ExceptionRecord, Statistics, DeviceFilters
+  BorrowRecord, MaintenanceRecord, ExceptionRecord, Statistics, DeviceFilters,
+  Reservation
 } from '../types';
 
 export const api = {
@@ -119,6 +120,21 @@ export const api = {
     },
     delete(id: number): Promise<void> {
       return http.delete(`/users/${id}/`);
+    },
+  },
+
+  reservations: {
+    list(filters?: { status?: string; device?: number }): Promise<Reservation[]> {
+      return http.get('/reservations/', filters);
+    },
+    create(data: { device: number; expected_borrow_date: string; expected_return_date: string; purpose: string }): Promise<Reservation> {
+      return http.post('/reservations/', data);
+    },
+    cancel(id: number): Promise<Reservation> {
+      return http.post(`/reservations/${id}/cancel/`);
+    },
+    deviceQueue(deviceId: number): Promise<Reservation[]> {
+      return http.get('/reservations/device_queue/', { device: deviceId });
     },
   },
 };

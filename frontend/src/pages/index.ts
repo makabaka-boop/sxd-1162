@@ -4,6 +4,7 @@ export { DeviceListPage } from './DeviceListPage';
 export { DeviceDetailPage } from './DeviceDetailPage';
 export { BorrowPage } from './BorrowPage';
 export { ReturnPage } from './ReturnPage';
+export { ReservationPage } from './ReservationPage';
 export { MaintenancePage } from './MaintenancePage';
 export { ExceptionPage } from './ExceptionPage';
 export { ExceptionReviewPage } from './ExceptionReviewPage';

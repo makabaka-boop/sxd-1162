@@ -288,6 +288,10 @@ body {
   border-left-color: #48bb78;
 }
 
+.stat-card.info {
+  border-left-color: #4299e1;
+}
+
 .chart-container {
   background: white;
   border-radius: 8px;
@@ -382,6 +386,8 @@ body {
 .timeline-item.return::before { background-color: #48bb78; box-shadow: 0 0 0 2px #48bb78; }
 .timeline-item.maintenance::before { background-color: #ed8936; box-shadow: 0 0 0 2px #ed8936; }
 .timeline-item.exception::before { background-color: #f56565; box-shadow: 0 0 0 2px #f56565; }
+.timeline-item.reservation::before { background-color: #9f7aea; box-shadow: 0 0 0 2px #9f7aea; }
+.timeline-item.reservation_cancel::before { background-color: #a0aec0; box-shadow: 0 0 0 2px #a0aec0; }
 
 .timeline-date {
   font-size: 0.75rem;
