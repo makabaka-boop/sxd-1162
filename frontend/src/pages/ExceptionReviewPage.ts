@@ -64,7 +64,7 @@ export async function ExceptionReviewPage(): Promise<HTMLElement> {
 
       if (!reviewResult) {
         showAlert('请输入复核意见');
-        return;
+        return false;
       }
 
       try {
@@ -76,6 +76,7 @@ export async function ExceptionReviewPage(): Promise<HTMLElement> {
         loadData();
       } catch (error) {
         showAlert(error instanceof Error ? error.message : '复核失败');
+        return false;
       }
     });
   };

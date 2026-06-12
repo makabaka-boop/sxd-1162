@@ -51,7 +51,7 @@ export async function AdminUserPage(): Promise<HTMLElement> {
 
       if (!username || !password || !realName) {
         showAlert('请填写完整信息');
-        return;
+        return false;
       }
 
       try {
@@ -60,6 +60,7 @@ export async function AdminUserPage(): Promise<HTMLElement> {
         loadData();
       } catch (error) {
         showAlert(error instanceof Error ? error.message : '添加失败');
+        return false;
       }
     });
   };

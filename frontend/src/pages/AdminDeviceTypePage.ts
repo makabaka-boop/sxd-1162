@@ -42,7 +42,7 @@ export async function AdminDeviceTypePage(): Promise<HTMLElement> {
 
       if (!name) {
         showAlert('请输入类型名称');
-        return;
+        return false;
       }
 
       try {
@@ -51,6 +51,7 @@ export async function AdminDeviceTypePage(): Promise<HTMLElement> {
         loadData();
       } catch (error) {
         showAlert(error instanceof Error ? error.message : '添加失败');
+        return false;
       }
     });
   };
@@ -79,7 +80,7 @@ export async function AdminDeviceTypePage(): Promise<HTMLElement> {
 
       if (!name) {
         showAlert('请输入类型名称');
-        return;
+        return false;
       }
 
       try {
@@ -88,6 +89,7 @@ export async function AdminDeviceTypePage(): Promise<HTMLElement> {
         loadData();
       } catch (error) {
         showAlert(error instanceof Error ? error.message : '更新失败');
+        return false;
       }
     });
   };

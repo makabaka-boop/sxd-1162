@@ -75,6 +75,7 @@ export async function ReturnPage(): Promise<HTMLElement> {
         loadData();
       } catch (error) {
         showAlert(error instanceof Error ? error.message : '归还失败');
+        return false;
       }
     });
   };

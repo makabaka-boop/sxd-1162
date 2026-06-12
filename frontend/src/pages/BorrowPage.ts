@@ -62,7 +62,7 @@ export async function BorrowPage(): Promise<HTMLElement> {
 
       if (!expectedReturnDate || !borrowPurpose) {
         showAlert('请填写完整信息');
-        return;
+        return false;
       }
 
       try {
@@ -75,6 +75,7 @@ export async function BorrowPage(): Promise<HTMLElement> {
         loadData();
       } catch (error) {
         showAlert(error instanceof Error ? error.message : '借用失败');
+        return false;
       }
     });
   };

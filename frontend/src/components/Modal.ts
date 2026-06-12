@@ -1,4 +1,4 @@
-export function showModal(title: string, content: HTMLElement, onConfirm?: () => void): () => void {
+export function showModal(title: string, content: HTMLElement, onConfirm?: () => boolean | void | Promise<boolean | void>): () => void {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
 
@@ -30,9 +30,26 @@ export function showModal(title: string, content: HTMLElement, onConfirm?: () =>
   const confirmBtn = document.createElement('button');
   confirmBtn.className = 'btn btn-primary';
   confirmBtn.textContent = '确定';
-  confirmBtn.onclick = () => {
-    if (onConfirm) onConfirm();
-    document.body.removeChild(overlay);
+  confirmBtn.onclick = async () => {
+    if (!onConfirm) {
+      document.body.removeChild(overlay);
+      return;
+    }
+
+    try {
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = '处理中...';
+      const result = await onConfirm();
+      if (result !== false) {
+        document.body.removeChild(overlay);
+      } else {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = '确定';
+      }
+    } catch (error) {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = '确定';
+    }
   };
 
   footer.appendChild(cancelBtn);

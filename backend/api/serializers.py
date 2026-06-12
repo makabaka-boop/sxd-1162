@@ -125,15 +125,15 @@ class DeviceDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_borrow_records(self, obj):
-        records = obj.borrow_records.all()[:50]
+        records = obj.borrow_records.all().order_by('-borrow_date')
         return BorrowRecordSerializer(records, many=True).data
 
     def get_maintenance_records(self, obj):
-        records = obj.maintenance_records.all()[:50]
+        records = obj.maintenance_records.all().order_by('-maintenance_date')
         return MaintenanceRecordSerializer(records, many=True).data
 
     def get_exception_records(self, obj):
-        records = obj.exception_records.all()[:50]
+        records = obj.exception_records.all().order_by('-reported_date')
         return ExceptionRecordSerializer(records, many=True).data
 
 
@@ -144,6 +144,18 @@ class DeviceCreateSerializer(serializers.ModelSerializer):
 
     def validate_asset_number(self, value):
         if Device.objects.filter(asset_number=value).exists():
+            raise serializers.ValidationError('资产编号已存在')
+        return value
+
+
+class DeviceUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Device
+        fields = ['asset_number', 'name', 'device_type', 'location', 'status', 'specification', 'purchase_date']
+
+    def validate_asset_number(self, value):
+        instance = self.instance
+        if instance and Device.objects.filter(asset_number=value).exclude(pk=instance.pk).exists():
             raise serializers.ValidationError('资产编号已存在')
         return value
 

@@ -74,6 +74,8 @@ class DeviceViewSet(viewsets.ModelViewSet):
             return DeviceListSerializer
         elif self.action == 'create':
             return DeviceCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return DeviceUpdateSerializer
         return DeviceDetailSerializer
 
     def get_permissions(self):
@@ -160,7 +162,7 @@ class BorrowRecordViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == 'create':
-            return [IsEmployee()]
+            return [IsAdminOrEmployee()]
         if self.action in ['list', 'retrieve']:
             return [IsAuthenticated()]
         return [IsAdmin()]
@@ -187,7 +189,7 @@ class BorrowRecordViewSet(viewsets.ModelViewSet):
         headers = self.get_success_headers(serializer.data)
         return Response(BorrowRecordSerializer(borrow_record).data, status=status.HTTP_201_CREATED, headers=headers)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsEmployee])
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminOrEmployee])
     def return_device(self, request, pk=None):
         borrow_record = self.get_object()
         if borrow_record.borrower != request.user and request.user.role != 'admin':
@@ -197,6 +199,8 @@ class BorrowRecordViewSet(viewsets.ModelViewSet):
 
         serializer = ReturnDeviceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        is_overdue = borrow_record.expected_return_date < timezone.now().date()
 
         borrow_record.returned = True
         borrow_record.actual_return_date = timezone.now()
@@ -211,12 +215,13 @@ class BorrowRecordViewSet(viewsets.ModelViewSet):
             device.status = 'available'
         device.save()
 
-        if borrow_record.is_overdue():
+        if is_overdue:
+            overdue_days = (timezone.now().date() - borrow_record.expected_return_date).days
             ExceptionRecord.objects.create(
                 device=device,
                 reporter=request.user,
                 exception_type='overdue',
-                description=f'设备逾期归还，逾期天数: {(timezone.now().date() - borrow_record.expected_return_date).days}天'
+                description=f'设备逾期归还，逾期天数: {overdue_days}天'
             )
 
         if borrow_record.damage_notes:
@@ -240,7 +245,7 @@ class MaintenanceRecordViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update']:
-            return [IsEmployee()]
+            return [IsAdminOrEmployee()]
         if self.action in ['list', 'retrieve']:
             return [IsAuthenticated()]
         return [IsAdmin()]
@@ -261,7 +266,7 @@ class MaintenanceRecordViewSet(viewsets.ModelViewSet):
             completed=True,
             completed_date=timezone.now()
         )
-        device.status = 'recovered'
+        device.status = 'available'
         device.last_maintenance_date = timezone.now()
         device.save()
         headers = self.get_success_headers(serializer.data)
@@ -279,10 +284,10 @@ class ExceptionRecordViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == 'create':
-            return [IsEmployee()]
+            return [IsAdminOrEmployee()]
         if self.action in ['list', 'retrieve']:
             return [IsAuthenticated()]
-        return [IsSupervisor()]
+        return [IsAdminOrSupervisor()]
 
     def get_queryset(self):
         queryset = ExceptionRecord.objects.all()
@@ -308,7 +313,7 @@ class ExceptionRecordViewSet(viewsets.ModelViewSet):
         headers = self.get_success_headers(serializer.data)
         return Response(ExceptionRecordSerializer(exception).data, status=status.HTTP_201_CREATED, headers=headers)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsSupervisor])
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminOrSupervisor])
     def review(self, request, pk=None):
         exception = self.get_object()
         if exception.review_status != 'pending':

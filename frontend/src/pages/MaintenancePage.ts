@@ -62,7 +62,7 @@ export async function MaintenancePage(): Promise<HTMLElement> {
 
       if (!deviceId || !maintenanceType || !description || !result) {
         showAlert('请填写完整信息');
-        return;
+        return false;
       }
 
       try {
@@ -76,6 +76,7 @@ export async function MaintenancePage(): Promise<HTMLElement> {
         loadData();
       } catch (error) {
         showAlert(error instanceof Error ? error.message : '登记失败');
+        return false;
       }
     });
   };

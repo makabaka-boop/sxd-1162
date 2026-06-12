@@ -1,4 +1,5 @@
 import { api } from '../api';
+import { auth } from '../utils/auth';
 import { formatDateTime, getStatusBadgeClass, getExceptionTypeText, getReviewStatusText } from '../utils/format';
 import { showAlert, showModal } from '../components/Modal';
 import type { ExceptionRecord, Device } from '../types';
@@ -63,7 +64,7 @@ export async function ExceptionPage(): Promise<HTMLElement> {
 
       if (!deviceId || !exceptionType || !description) {
         showAlert('请填写完整信息');
-        return;
+        return false;
       }
 
       try {
@@ -76,6 +77,7 @@ export async function ExceptionPage(): Promise<HTMLElement> {
         loadData();
       } catch (error) {
         showAlert(error instanceof Error ? error.message : '上报失败');
+        return false;
       }
     });
   };
@@ -83,10 +85,11 @@ export async function ExceptionPage(): Promise<HTMLElement> {
   const render = () => {
     const filtered = getFilteredRecords();
 
+    const canReport = auth.hasRole(['admin', 'employee']);
     container.innerHTML = `
       <div class="card-header" style="margin-bottom: 1rem;">
         <h2 class="card-title">异常记录</h2>
-        <button class="btn btn-warning" id="report-exception-btn">上报异常</button>
+        ${canReport ? '<button class="btn btn-warning" id="report-exception-btn">上报异常</button>' : ''}
       </div>
 
       <div class="filters">
